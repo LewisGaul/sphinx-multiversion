@@ -1,4 +1,6 @@
-# sphinx-multiversion [![Build Status](https://travis-ci.org/Holzhaus/sphinx-multiversion.svg?branch=master)](https://travis-ci.org/Holzhaus/sphinx-multiversion)
+# sphinx-multiversion
+
+Note: This is a fork of <https://github.com/Holzhaus/sphinx-multiversion>.
 
 Sphinx extension for building self-hosted versioned docs.
 
