@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-import itertools
 import argparse
-import multiprocessing
 import contextlib
+import itertools
 import json
 import logging
+import multiprocessing
 import os
 import pathlib
 import re
@@ -16,8 +16,21 @@ import tempfile
 from sphinx import config as sphinx_config
 from sphinx import project as sphinx_project
 
-from . import sphinx
-from . import git
+from . import git, sphinx
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+ROOT_REDIRECT_HTML = """
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Redirecting to {smv_default_ref}</title>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="0; URL={smv_default_ref}/">
+    <link rel="canonical" href="{smv_default_ref}/">
+  </head>
+</html>
+"""
 
 
 @contextlib.contextmanager
@@ -67,6 +80,7 @@ def load_sphinx_config_worker(q, confpath, confoverrides, add_defaults):
                 str,
             )
             current_config.add("smv_prefer_remote_refs", False, "html", bool)
+            current_config.add("smv_default_ref", None, None, str)
         current_config.pre_init_values()
         current_config.init_values()
     except Exception as err:
@@ -120,10 +134,7 @@ def get_python_flags():
             yield from ("-X", "{}={}".format(option, value))
 
 
-def main(argv=None):
-    if not argv:
-        argv = sys.argv[1:]
-
+def parse_args(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("sourcedir", help="path to documentation source files")
     parser.add_argument("outputdir", help="path to output directory")
@@ -160,7 +171,11 @@ def main(argv=None):
         action="store_true",
         help="dump generated metadata and exit",
     )
-    args, argv = parser.parse_known_args(argv)
+    return parser.parse_known_args(argv)
+
+
+def main(argv=None):
+    args, argv = parse_args(argv)
     if args.noconfig:
         return 1
 
@@ -250,18 +265,18 @@ def main(argv=None):
                 continue
 
             # Ensure that there are not duplicate output dirs
-            outputdir = config.smv_outputdir_format.format(
+            outputsubdir = config.smv_outputdir_format.format(
                 ref=gitref,
                 config=current_config,
             )
-            if outputdir in outputdirs:
+            if outputsubdir in outputdirs:
                 logger.warning(
                     "outputdir '%s' for %s conflicts with other versions",
-                    outputdir,
+                    outputsubdir,
                     gitref.refname,
                 )
                 continue
-            outputdirs.add(outputdir)
+            outputdirs.add(outputsubdir)
 
             # Get List of files
             source_suffixes = current_config.source_suffix
@@ -285,7 +300,7 @@ def main(argv=None):
                 "basedir": repopath,
                 "sourcedir": current_sourcedir,
                 "outputdir": os.path.join(
-                    os.path.abspath(args.outputdir), outputdir
+                    os.path.abspath(args.outputdir), outputsubdir
                 ),
                 "confdir": confpath,
                 "docnames": list(project.discover()),
@@ -350,5 +365,13 @@ def main(argv=None):
                 }
             )
             subprocess.check_call(cmd, cwd=current_cwd, env=env)
+
+        # Copy redirect index.html file.
+        if config.smv_default_ref:
+            redirect_html = ROOT_REDIRECT_HTML.format(
+                smv_default_ref=config.smv_default_ref
+            )
+            with open(os.path.join(args.outputdir, "index.html"), "w") as f:
+                f.write(redirect_html)
 
     return 0
