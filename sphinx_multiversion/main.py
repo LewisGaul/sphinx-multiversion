@@ -250,12 +250,6 @@ def main(argv=None):
                 )
                 continue
 
-            # Use the current conf file for all versions.
-            if not os.path.isabs(conffile):
-                shutil.copyfile(
-                    conffile_absolute, os.path.join(repopath, conffile)
-                )
-
             # Find config
             confpath = os.path.join(repopath, confdir)
             try:
