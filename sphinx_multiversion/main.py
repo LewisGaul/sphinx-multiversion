@@ -8,6 +8,7 @@ import multiprocessing
 import os
 import pathlib
 import re
+import shutil
 import string
 import subprocess
 import sys
@@ -141,7 +142,7 @@ def parse_args(argv):
     parser.add_argument(
         "filenames",
         nargs="*",
-        help="a list of specific files to rebuild. Ignored if -a is specified",
+        help="a list of specific files to rebuild",
     )
     parser.add_argument(
         "-c",
@@ -200,27 +201,24 @@ def main(argv=None):
     )
 
     # Get relative paths to root of git repository
-    gitroot = pathlib.Path(
-        git.get_toplevel_path(cwd=sourcedir_absolute)
-    ).resolve()
+    gitroot = os.path.abspath(git.get_toplevel_path(cwd=sourcedir_absolute))
+    logger.debug("Git toplevel path: %s", gitroot)
     cwd_absolute = os.path.abspath(".")
-    cwd_relative = os.path.relpath(cwd_absolute, str(gitroot))
+    cwd_relative = os.path.relpath(cwd_absolute, gitroot)
 
-    logger.debug("Git toplevel path: %s", str(gitroot))
-    sourcedir = os.path.relpath(sourcedir_absolute, str(gitroot))
-    logger.debug(
-        "Source dir (relative to git toplevel path): %s", str(sourcedir)
-    )
-    if args.confdir:
-        confdir = os.path.relpath(confdir_absolute, str(gitroot))
+    sourcedir = os.path.relpath(sourcedir_absolute, gitroot)
+    logger.debug("Source dir (relative to git toplevel path): %s", sourcedir)
+    if confdir_absolute.startswith(gitroot):
+        confdir = os.path.relpath(confdir_absolute, gitroot)
     else:
-        confdir = sourcedir
-    logger.debug("Conf dir (relative to git toplevel path): %s", str(confdir))
+        confdir = confdir_absolute
+    logger.debug("Conf dir (relative to git toplevel path): %s", confdir)
+    conffile_absolute = os.path.join(confdir_absolute, "conf.py")
     conffile = os.path.join(confdir, "conf.py")
 
     # Get git references
     gitrefs = git.get_refs(
-        str(gitroot),
+        gitroot,
         config.smv_tag_whitelist,
         config.smv_branch_whitelist,
         config.smv_remote_whitelist,
@@ -233,8 +231,6 @@ def main(argv=None):
     else:
         gitrefs = sorted(gitrefs, key=lambda x: (x.is_remote, *x))
 
-    logger = logging.getLogger(__name__)
-
     with tempfile.TemporaryDirectory() as tmp:
         # Generate Metadata
         metadata = {}
@@ -243,7 +239,9 @@ def main(argv=None):
             # Clone Git repo
             repopath = os.path.join(tmp, gitref.commit)
             try:
-                git.copy_tree(str(gitroot), gitroot.as_uri(), repopath, gitref)
+                git.copy_tree(
+                    gitroot, pathlib.Path(gitroot).as_uri(), repopath, gitref
+                )
             except (OSError, subprocess.CalledProcessError):
                 logger.error(
                     "Failed to copy git tree for %s to %s",
@@ -338,7 +336,7 @@ def main(argv=None):
                     "-D",
                     "smv_current_version={}".format(version_name),
                     "-c",
-                    confdir_absolute,
+                    data["confdir"],
                     data["sourcedir"],
                     data["outputdir"],
                     *args.filenames,

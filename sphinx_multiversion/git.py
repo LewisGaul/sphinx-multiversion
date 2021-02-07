@@ -23,7 +23,7 @@ GitRef = collections.namedtuple(
 logger = logging.getLogger(__name__)
 
 
-def get_toplevel_path(cwd=None):
+def get_toplevel_path(cwd=None) -> str:
     cmd = (
         "git",
         "rev-parse",
@@ -126,7 +126,7 @@ def get_refs(
             and not file_exists(gitroot, ref.refname, filename)
         ]
         if missing_files:
-            logger.debug(
+            logger.warning(
                 "Skipping '%s' because it lacks required files: %r",
                 ref.refname,
                 missing_files,
