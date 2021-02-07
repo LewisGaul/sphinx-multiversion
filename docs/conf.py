@@ -11,7 +11,7 @@ copyright = "{}, {}".format(time.strftime("%Y"), author)
 html_theme = "alabaster"
 html_theme_options = {
     "github_repo": "sphinx-multiversion",
-    "github_user": "Holzhaus",
+    "github_user": "LewisGaul",
     "github_banner": True,
     "github_button": True,
     "travis_button": True,
@@ -41,3 +41,4 @@ html_sidebars = {
 
 smv_remote_whitelist = r"^origin$"
 smv_branch_whitelist = r"^master$"
+smv_default_ref = "master"
