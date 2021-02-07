@@ -29,6 +29,9 @@ This is what the default configuration looks like:
     # Determines whether remote or local git branches/tags are preferred if their output dirs conflict
     smv_prefer_remote_refs = False
 
+    # Set to match an outputdir for a redirect index page to be created.
+    smv_default_ref = None
+
 You can override all of these values inside your :file:`conf.py`.
 
 .. note::
